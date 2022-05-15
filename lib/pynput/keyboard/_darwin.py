@@ -182,6 +182,7 @@ class Key(enum.Enum):
     space = KeyCode.from_vk(0x31, char=' ')
     tab = KeyCode.from_vk(0x30)
     up = KeyCode.from_vk(0x7E)
+    fn = KeyCode.from_vk(0x3F)
 
     media_play_pause = KeyCode._from_media(NX_KEYTYPE_PLAY)
     media_volume_mute = KeyCode._from_media(NX_KEYTYPE_MUTE)
@@ -237,7 +238,8 @@ class Listener(ListenerMixin, _base.Listener):
         Key.ctrl_r: Quartz.kCGEventFlagMaskControl,
         Key.shift: Quartz.kCGEventFlagMaskShift,
         Key.shift_l: Quartz.kCGEventFlagMaskShift,
-        Key.shift_r: Quartz.kCGEventFlagMaskShift}
+        Key.shift_r: Quartz.kCGEventFlagMaskShift,
+        Key.fn: Quartz.kCGEventFlagMaskSecondaryFn}
 
     def __init__(self, *args, **kwargs):
         super(Listener, self).__init__(*args, **kwargs)
