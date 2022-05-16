@@ -1,6 +1,6 @@
 # coding=utf-8
 # pynput
-# Copyright (C) 2015-2022 Moses Palmér
+# Copyright (C) 2015-2022 Moses Palmérs
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by the Free
@@ -262,7 +262,26 @@ class ListenerMixin(object):
 
         This method will call the callbacks registered on initialisation.
         """
+        # Let pass mouse move and scroll events
+        if event_type in (Quartz.kCGEventMouseMoved, Quartz.kCGEventLeftMouseDragged,
+                          Quartz.kCGEventRightMouseDragged, Quartz.kCGEventOtherMouseDragged,
+                          Quartz.kCGEventScrollWheel):
+            return event
+
+        # Let pass software injected events
+        is_injected = Quartz.CGEventGetIntegerValueField(
+            event, Quartz.kCGEventSourceUnixProcessID) != 0
+        if is_injected: return event
+
         self._handle(proxy, event_type, event, refcon)
+
+        # Let pass media keys since they don't have well-defined key codes to be properly
+        # handled by the software
+        try:
+            if self._event_to_key(event).value._is_media: return event
+        except AttributeError:
+            pass
+
         if self._intercept is not None:
             return self._intercept(event_type, event)
         elif self.suppress:
