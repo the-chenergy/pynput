@@ -176,25 +176,28 @@ class Listener(ListenerMixin, _base.Listener):
         """The callback registered with *macOS* for mouse events.
 
         This method will call the callbacks registered on initialisation.
+
+        Returns whether to suppress the event.
         """
         try:
             (px, py) = Quartz.CGEventGetLocation(event)
         except AttributeError:
             # This happens during teardown of the virtual machine
-            return
+            return False
 
         # Quickly detect the most common event type
+        should_suppress = False
         if event_type == Quartz.kCGEventMouseMoved:
-            self.on_move(px, py)
+           should_suppress = self.on_move(px, py) == 2
 
         elif event_type == Quartz.kCGEventScrollWheel:
-            dx = Quartz.CGEventGetIntegerValueField(
+            dx = Quartz.CGEventGetDoubleValueField(
                 event,
-                Quartz.kCGScrollWheelEventDeltaAxis2)
-            dy = Quartz.CGEventGetIntegerValueField(
+                Quartz.kCGScrollWheelEventFixedPtDeltaAxis2)
+            dy = Quartz.CGEventGetDoubleValueField(
                 event,
-                Quartz.kCGScrollWheelEventDeltaAxis1)
-            self.on_scroll(px, py, dx, dy)
+                Quartz.kCGScrollWheelEventFixedPtDeltaAxis1)
+            should_suppress = self.on_scroll(px, py, dx, dy) == 2
 
         else:
             for button in Button:
@@ -207,6 +210,9 @@ class Listener(ListenerMixin, _base.Listener):
                 # Press and release generate click events, and drag
                 # generates move events
                 if event_type in (press, release):
-                    self.on_click(px, py, button, event_type == press)
+                    should_suppress = self.on_click(
+                        px, py, button, event_type == press) == 2
                 elif event_type == drag:
-                    self.on_move(px, py)
+                    should_suppress = self.on_move(px, py) == 2
+
+        return should_suppress

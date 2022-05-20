@@ -258,6 +258,8 @@ class Listener(ListenerMixin, _base.Listener):
                 self._context = None
 
     def _handle(self, _proxy, event_type, event, _refcon):
+        '''Returns whether to suppress the event after reporting it.
+        '''
         # Convert the event to a KeyCode; this may fail, and in that case we
         # pass None
         try:
@@ -265,20 +267,21 @@ class Listener(ListenerMixin, _base.Listener):
         except IndexError:
             key = None
 
+        should_suppress = False
         try:
             if event_type == Quartz.kCGEventKeyDown:
                 # This is a normal key press
-                self.on_press(key)
+                should_suppress = self.on_press(key) == 2
 
             elif event_type == Quartz.kCGEventKeyUp:
                 # This is a normal key release
-                self.on_release(key)
+                should_suppress = self.on_release(key) == 2
 
             elif key == Key.caps_lock:
                 # We only get an event when caps lock is toggled, so we fake
                 # press and release
-                self.on_press(key)
-                self.on_release(key)
+                should_suppress = self.on_press(key) == 2
+                should_suppress |= self.on_release(key) == 2
 
             elif event_type == Quartz.NSSystemDefined:
                 sys_event = Quartz.NSEvent.eventWithCGEvent_(event)
@@ -290,9 +293,9 @@ class Listener(ListenerMixin, _base.Listener):
                         flags = sys_event.data1() & 0x0000ffff
                         is_press = ((flags & 0xff00) >> 8) == 0x0a
                         if is_press:
-                            self.on_press(self._SPECIAL_KEYS[key])
+                            should_suppress = self.on_press(self._SPECIAL_KEYS[key]) == 2
                         else:
-                            self.on_release(self._SPECIAL_KEYS[key])
+                            should_suppress = self.on_release(self._SPECIAL_KEYS[key]) == 2
 
             else:
                 # This is a modifier event---excluding caps lock---for which we
@@ -301,10 +304,11 @@ class Listener(ListenerMixin, _base.Listener):
                 flags = Quartz.CGEventGetFlags(event)
                 is_press = flags & self._MODIFIER_FLAGS.get(key, 0)
                 if is_press:
-                    self.on_press(key)
+                    should_suppress = self.on_press(key) == 2
                 else:
-                    self.on_release(key)
+                    should_suppress = self.on_release(key) == 2
 
+            return should_suppress
         finally:
             # Store the current flag mask to be able to detect modifier state
             # changes

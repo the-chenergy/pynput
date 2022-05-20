@@ -141,8 +141,10 @@ class AbstractListener(threading.Thread):
 
         def wrapper(f):
             def inner(*args):
-                if f(*args) is False:
+                res = f(*args)
+                if res is False:
                     raise self.StopException()
+                return res
             return inner
 
         self._suppress = suppress
