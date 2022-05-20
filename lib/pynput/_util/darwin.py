@@ -262,12 +262,6 @@ class ListenerMixin(object):
 
         This method will call the callbacks registered on initialisation.
         """
-        # Let pass mouse move and scroll events
-        if event_type in (Quartz.kCGEventMouseMoved, Quartz.kCGEventLeftMouseDragged,
-                          Quartz.kCGEventRightMouseDragged, Quartz.kCGEventOtherMouseDragged,
-                          Quartz.kCGEventScrollWheel):
-            return event
-
         # Let pass software injected events
         is_injected = Quartz.CGEventGetIntegerValueField(
             event, Quartz.kCGEventSourceUnixProcessID) != 0
