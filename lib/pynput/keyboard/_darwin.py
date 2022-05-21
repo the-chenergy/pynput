@@ -122,7 +122,10 @@ class KeyCode(_base.KeyCode):
                if Key.ctrl in modifiers else 0)
 
             | (Quartz.kCGEventFlagMaskShift
-               if Key.shift in modifiers else 0))
+               if Key.shift in modifiers else 0)
+
+            | (Quartz.kCGEventFlagMaskSecondaryFn
+               if Key.fn in modifiers else 0))
 
         if vk is None and self.char is not None:
             Quartz.CGEventKeyboardSetUnicodeString(
@@ -308,11 +311,19 @@ class Listener(ListenerMixin, _base.Listener):
                 else:
                     should_suppress = self.on_release(key) == 2
 
+                if should_suppress:
+                    Quartz.CGEventSetFlags(event, self._flags)
+                else:
+                    Quartz.CGEventPost(
+                        Quartz.kCGHIDEventTap,
+                        (key.value)._event(set(), {}, is_press))
+
             return should_suppress
         finally:
             # Store the current flag mask to be able to detect modifier state
             # changes
-            self._flags = Quartz.CGEventGetFlags(event)
+            if not should_suppress:
+                self._flags = Quartz.CGEventGetFlags(event)
 
     def _event_to_key(self, event):
         """Converts a *Quartz* event to a :class:`KeyCode`.
