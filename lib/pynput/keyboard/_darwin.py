@@ -251,6 +251,7 @@ class Listener(ListenerMixin, _base.Listener):
         self._intercept = self._options.get(
             'intercept',
             None)
+        self._is_caps_lock_on = False
 
     def _run(self):
         with keycode_context() as context:
@@ -281,10 +282,12 @@ class Listener(ListenerMixin, _base.Listener):
                 should_suppress = self.on_release(key) == 2
 
             elif key == Key.caps_lock:
-                # We only get an event when caps lock is toggled, so we fake
-                # press and release
-                should_suppress = self.on_press(key) == 2
-                should_suppress |= self.on_release(key) == 2
+                # Use the current flags and new flags to figure whether it's a press
+                if event_type == Quartz.NSEventTypeFlagsChanged:
+                    should_suppress = self.on_press(key) == 2
+                    self._is_caps_lock_on = Quartz.CGEventGetFlags(event) & 1 << 16 > 0
+                else:
+                    should_suppress = self.on_release(key) == 2
 
             elif event_type == Quartz.NSSystemDefined:
                 sys_event = Quartz.NSEvent.eventWithCGEvent_(event)
@@ -304,8 +307,11 @@ class Listener(ListenerMixin, _base.Listener):
                 # This is a modifier event---excluding caps lock---for which we
                 # must check the current modifier state to determine whether
                 # the key was pressed or released
+                if key not in self._MODIFIER_FLAGS:
+                    return False
+
                 flags = Quartz.CGEventGetFlags(event)
-                is_press = flags & self._MODIFIER_FLAGS.get(key, 0)
+                is_press = flags & self._MODIFIER_FLAGS[key]
                 if is_press:
                     should_suppress = self.on_press(key) == 2
                 else:
@@ -339,7 +345,17 @@ class Listener(ListenerMixin, _base.Listener):
         event_type = Quartz.CGEventGetType(event)
         is_media = True if event_type == Quartz.NSSystemDefined else None
 
-        # First try special keys...
+        # First hard-check if it's a caps lock release...
+        flags = Quartz.CGEventGetFlags(event)
+        old_8 = self._flags & 1 << 8 > 0
+        new_8 = flags & 1 << 8 > 0
+        old_16 = self._flags & 1 << 16 > 0
+        new_16 = flags & 1 << 16 > 0
+        if event_type == Quartz.NSEventTypeSystemDefined and not old_8 and new_8 \
+                and (old_16 or new_16) and (old_16 == new_16) == self._is_caps_lock_on:
+            return Key.caps_lock
+
+        # ...then try other special keys...
         key = (vk, is_media)
         if key in self._SPECIAL_KEYS:
             return self._SPECIAL_KEYS[key]
