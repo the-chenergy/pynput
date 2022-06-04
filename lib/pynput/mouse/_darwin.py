@@ -58,6 +58,8 @@ class Button(enum.Enum):
     left = _button_value('kCGEventLeft', 0)
     middle = _button_value('kCGEventOther', 2)
     right = _button_value('kCGEventRight', 1)
+    button_4 = _button_value('kCGEventOther', 3)
+    button_5 = _button_value('kCGEventOther', 4)
 
 
 class Controller(_base.Controller):
@@ -202,17 +204,20 @@ class Listener(ListenerMixin, _base.Listener):
         else:
             for button in Button:
                 try:
-                    (press, release, drag), _ = button.value
+                    (press, release, drag), code = button.value
                 except TypeError:
                     # Button.unknown cannot be enumerated
                     continue
 
                 # Press and release generate click events, and drag
                 # generates move events
-                if event_type in (press, release):
-                    should_suppress = self.on_click(
-                        px, py, button, event_type == press) == 2
-                elif event_type == drag:
-                    should_suppress = self.on_move(px, py) == 2
+                if Quartz.CGEventGetIntegerValueField(
+                        event, Quartz.kCGMouseEventButtonNumber) == code:
+                    if event_type in (press, release):
+                        should_suppress = self.on_click(
+                            px, py, button, event_type == press) == 2
+                    elif event_type == drag:
+                        should_suppress = self.on_move(px, py) == 2
+                    break
 
         return should_suppress
