@@ -25,7 +25,9 @@ The mouse implementation for *macOS*.
 # We implement stubs
 
 import enum
+import math
 import Quartz
+import time
 
 from AppKit import NSEvent
 
@@ -68,8 +70,9 @@ class Controller(_base.Controller):
 
     def __init__(self, *args, **kwargs):
         super(Controller, self).__init__(*args, **kwargs)
-        self._click = None
+        self._click = 1
         self._drag_button = None
+        self._last_press_time = -math.inf
 
     def _position_get(self):
         pos = NSEvent.mouseLocation()
@@ -113,12 +116,16 @@ class Controller(_base.Controller):
             mouse_button)
 
         # If we are performing a click, we need to set this state flag
-        if self._click is not None:
+        if time.time() - self._last_press_time < Quartz.NSEvent.doubleClickInterval():
             self._click += 1
-            Quartz.CGEventSetIntegerValueField(
-                event,
-                Quartz.kCGMouseEventClickState,
-                self._click)
+            if self._click > 1:
+                Quartz.CGEventSetIntegerValueField(
+                    event,
+                    Quartz.kCGMouseEventClickState,
+                    self._click)
+        else:
+            self._click = 1
+        self._last_press_time = time.time()
 
         Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
 
@@ -134,7 +141,7 @@ class Controller(_base.Controller):
             mouse_button)
 
         # If we are performing a click, we need to set this state flag
-        if self._click is not None:
+        if self._click > 1:
             Quartz.CGEventSetIntegerValueField(
                 event,
                 Quartz.kCGMouseEventClickState,
@@ -150,7 +157,7 @@ class Controller(_base.Controller):
         return self
 
     def __exit__(self, exc_type, value, traceback):
-        self._click = None
+        self._click = 1
 
 
 class Listener(ListenerMixin, _base.Listener):
