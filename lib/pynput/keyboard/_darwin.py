@@ -352,7 +352,7 @@ class Listener(ListenerMixin, _base.Listener):
         old_16 = self._flags & 1 << 16 > 0
         new_16 = flags & 1 << 16 > 0
         if event_type == Quartz.NSEventTypeSystemDefined and not old_8 and new_8 \
-                and (old_16 or new_16) and (old_16 == new_16) == self._is_caps_lock_on:
+                and old_16 == new_16 == self._is_caps_lock_on:
             return Key.caps_lock
 
         # ...then try other special keys...
