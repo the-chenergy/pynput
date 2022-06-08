@@ -247,6 +247,7 @@ class Listener(ListenerMixin, _base.Listener):
     def __init__(self, *args, **kwargs):
         super(Listener, self).__init__(*args, **kwargs)
         self._flags = 0
+        self._both_flags = 0
         self._context = None
         self._intercept = self._options.get(
             'intercept',
@@ -311,13 +312,18 @@ class Listener(ListenerMixin, _base.Listener):
                     return False
 
                 flags = Quartz.CGEventGetFlags(event)
-                is_press = flags & self._MODIFIER_FLAGS[key]
+                both_flags = self._flags & flags & ~self._both_flags
+                is_press = (flags & self._MODIFIER_FLAGS[key]
+                            if not self._flags & self._MODIFIER_FLAGS[key]
+                            else both_flags & self._MODIFIER_FLAGS[key]) > 0
+                self._both_flags = both_flags
                 if is_press:
                     should_suppress = self.on_press(key) == 2
                 else:
                     should_suppress = self.on_release(key) == 2
 
                 if should_suppress:
+                    self._flags = Quartz.CGEventGetFlags(event)
                     Quartz.CGEventSetFlags(event, self._flags)
                 else:
                     Quartz.CGEventPost(
